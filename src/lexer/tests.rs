@@ -72,4 +72,26 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn strings_in_quotes() {
+        let lexer = Lexer::new("local test = 'test'; local test2 = \"test2\";".to_string());
+        let tokens = lexer.tokenize();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Local,
+                Token::Identifier("test".to_string()),
+                Token::Assignment,
+                Token::String("test".to_string()),
+                Token::Semicolon,
+                Token::Local,
+                Token::Identifier("test2".to_string()),
+                Token::Assignment,
+                Token::String("test2".to_string()),
+                Token::Semicolon
+            ]
+        );
+    }
 }

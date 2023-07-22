@@ -60,6 +60,7 @@ pub enum Token {
 
     Number(String),
     Identifier(String),
+    String(String),
 }
 
 pub struct Lexer {
@@ -80,30 +81,25 @@ impl Lexer {
             let mut chars = line.chars().peekable();
 
             while let Some(char) = chars.next() {
-                let potentially_operator = self.get_operator(char, &mut chars);
+                if let Some(operator) = self.get_operator(char, &mut chars) {
+                    tokens.push(operator);
+                    continue;
+                }
 
-                match potentially_operator {
-                    Some(operator) => {
-                        tokens.push(operator);
-                        continue;
-                    }
-                    None => {}
-                };
+                if let Some(string) = self.get_string(char, &mut chars) {
+                    tokens.push(string);
+                    continue;
+                }
 
-                let potentially_word = self.get_word(char, &mut chars);
+                if let Some(word) = self.get_word(char, &mut chars) {
+                    let keyword = self.get_keyword(&word);
 
-                match potentially_word {
-                    Some(word) => {
-                        let keyword = self.get_keyword(&word);
+                    match keyword {
+                        Some(token) => tokens.push(token),
+                        None => tokens.push(Token::Identifier(word)),
+                    };
 
-                        match keyword {
-                            Some(token) => {
-                                tokens.push(token);
-                            }
-                            None => tokens.push(Token::Identifier(word)),
-                        }
-                    }
-                    None => {}
+                    continue;
                 }
             }
         }
@@ -124,7 +120,7 @@ impl Lexer {
 
     fn get_long_operator(&self, op: &Token, chars: &mut Peekable<Chars>) -> Option<Token> {
         if !self.is_operator_possibly_long(&op) {
-            return None
+            return None;
         }
 
         let next_char = chars.peek();
@@ -143,25 +139,25 @@ impl Lexer {
                         match ch {
                             '.' => {
                                 chars.next();
-                                return Some(Token::TriplePeriod)
-                            },
-                            _ => Some(Token::DoublePeriod)
+                                return Some(Token::TriplePeriod);
+                            }
+                            _ => Some(Token::DoublePeriod),
                         }
                     } else {
                         Some(Token::DoublePeriod)
                     }
                 }
-                _ => None
+                _ => None,
             },
-            None => panic!("expected long operator, got nothing")
+            None => panic!("expected long operator, got nothing"),
         };
 
         match possibly_long_op {
             Some(long_op) => {
                 chars.next();
                 Some(long_op)
-            },
-            None => None
+            }
+            None => None,
         }
     }
 
@@ -197,11 +193,23 @@ impl Lexer {
 
                 match possibly_long_op {
                     Some(long_op) => Some(long_op),
-                    None => Some(operator)
+                    None => Some(operator),
                 }
             }
             None => None,
         }
+    }
+
+    fn get_string(&self, ch: char, chars: &mut Peekable<Chars>) -> Option<Token> {
+        if ch != '"' && ch != '\'' {
+            return None;
+        }
+
+        let string: String = chars
+            .take_while(|ch| ch.to_string() != "\"".to_string() && ch.to_string() != "\'".to_string())
+            .collect();
+
+        Some(Token::String(string))
     }
 
     fn get_word(&self, ch: char, chars: &mut Peekable<Chars>) -> Option<String> {
