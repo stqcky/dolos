@@ -4,7 +4,7 @@ mod tests {
 
     #[test]
     fn operators() {
-        let lexer = Lexer::new("+ - * / % ^ # == ~= <= >= < > = () {} [] ;:,. .. ...".to_string());
+        let lexer = Lexer::new("+ - * / ~ % ^ # == ~= <= >= < > = () {} [] ;:,. .. ...".to_string());
         let tokens = lexer.tokenize();
 
         assert_eq!(
@@ -14,6 +14,7 @@ mod tests {
                 Token::Minus,
                 Token::Multiply,
                 Token::Divide,
+                Token::Tilde,
                 Token::Modulo,
                 Token::Xor,
                 Token::Length,

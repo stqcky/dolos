@@ -31,7 +31,7 @@ pub enum Token {
 
     // Operators
     Assignment,
-    Squigly,
+    Tilde,
     Equal,
     NotEq,
     LessThanOrEqual,
@@ -110,7 +110,7 @@ impl Lexer {
     fn is_operator_possibly_long(&self, token: &Token) -> bool {
         match token {
             Token::Assignment => true,
-            Token::Not => true,
+            Token::Tilde => true,
             Token::LessThan => true,
             Token::GreaterThan => true,
             Token::Period => true,
@@ -128,7 +128,7 @@ impl Lexer {
         let possibly_long_op = match next_char {
             Some(next_char) => match (op, next_char) {
                 (Token::Assignment, '=') => Some(Token::Equal),
-                (Token::Not, '=') => Some(Token::NotEq),
+                (Token::Tilde, '=') => Some(Token::NotEq),
                 (Token::LessThan, '=') => Some(Token::LessThanOrEqual),
                 (Token::GreaterThan, '=') => Some(Token::GreaterThanOrEqual),
                 (Token::Period, '.') => {
@@ -183,7 +183,7 @@ impl Lexer {
             ':' => Some(Token::Colon),
             ',' => Some(Token::Comma),
             '.' => Some(Token::Period),
-            '~' => Some(Token::Not),
+            '~' => Some(Token::Tilde),
             _ => None,
         };
 
