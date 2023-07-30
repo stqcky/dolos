@@ -1,14 +1,26 @@
 use std::fs;
 
 use lexer::lexer::Lexer;
+use parser::parser::parse;
+
+extern crate pretty_env_logger;
+#[macro_use] extern crate log;
 
 mod lexer;
+mod parser;
 
 fn main() {
+    pretty_env_logger::init();
+
     let source_code = fs::read_to_string("test.lua").unwrap();
-    let lexer = Lexer::new(source_code);
 
-    let tokens = lexer.tokenize();
+    let chunk = parse(&source_code);
 
-    println!("{:?}", tokens);
+    println!("{:#?}", &chunk);
+
+    // let lexer = Lexer::new(source_code);
+
+    // let tokens = lexer.tokenize();
+
+    // println!("{:?}", tokens);
 }

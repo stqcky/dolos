@@ -1,66 +1,199 @@
-use std::{
-    collections::HashMap,
-    iter::Peekable,
-    str::{Chars, Lines},
-};
+use logos::Logos;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct LexerError {}
+
+impl From<logos::Lexer<'_, Token>> for LexerError {
+    fn from(value: logos::Lexer<Token>) -> Self {
+        println!("santehuasntoesnth");
+        println!("lexer error {:?}", value);
+
+        LexerError {}
+    }
+}
+
+impl From<Token> for LexerError {
+    fn from(value: Token) -> Self {
+        println!("santehuasntoesnth");
+        println!("lexer error {:?}", value);
+
+        LexerError {}
+    }
+}
+
+fn number(lex: &mut logos::Lexer<Token>) -> Option<f64> {
+    let number = lex.slice().parse::<f64>();
+
+    match number {
+        Ok(v) => Some(v),
+        Err(_) => None,
+    }
+}
+
+fn radix_number(lex: &mut logos::Lexer<Token>) -> Option<f64> {
+    let slice = lex.slice();
+
+    if let Some(s) = slice.strip_prefix("0x") {
+        if let Ok(num) = i64::from_str_radix(s, 16) {
+            return Some(num as f64);
+        }
+    } 
+
+    if let Some(s) = slice.strip_prefix("-0x") {
+        if let Ok(num) = i64::from_str_radix(s, 16) {
+            return Some((num * -1) as f64);
+        }
+    } 
+
+    if let Some(s) = slice.strip_prefix("0b") {
+        if let Ok(num) = i64::from_str_radix(s, 2) {
+            return Some(num as f64);
+        }
+    } 
+
+    if let Some(s) = slice.strip_prefix("-0b") {
+        if let Ok(num) = i64::from_str_radix(s, 2) {
+            return Some((num * -1) as f64);
+        }
+    } 
+
+    None
+}
+
+fn string(lex: &mut logos::Lexer<Token>) -> String {
+    let slice = lex.slice();
+
+    slice.trim_matches('\"').trim_matches('\'').to_string()
+}
+
+fn comment(lex: &mut logos::Lexer<Token>) -> Option<String> {
+    match lex.slice().strip_prefix("--") {
+        Some(v) => Some(v.to_string()),
+        None => None
+    }
+}
+
+#[derive(Clone, Default, Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\n\f]+")]
+#[logos(error = LexerError)]
 pub enum Token {
+    #[default]
+    Invalid,
+
     // Keywords
+    #[token("and")]
     And,
+    #[token("break")]
     Break,
+    #[token("do")]
     Do,
+    #[token("else")]
     Else,
+    #[token("elseif")]
     Elseif,
+    #[token("end")]
     End,
+    #[token("false")]
     False,
+    #[token("for")]
     For,
+    #[token("function")]
     Function,
+    #[token("if")]
     If,
+    #[token("in")]
     In,
+    #[token("local")]
     Local,
+    #[token("nil")]
     Nil,
+    #[token("not")]
     Not,
+    #[token("or")]
     Or,
+    #[token("repeat")]
     Repeat,
+    #[token("return")]
     Return,
+    #[token("then")]
     Then,
+    #[token("true")]
     True,
+    #[token("until")]
     Until,
+    #[token("while")]
     While,
 
     // Operators
+    #[token("=")]
     Assignment,
+    #[token("~")]
     Tilde,
+    #[token("==")]
     Equal,
+    #[token("~=")]
     NotEq,
+    #[token("<=")]
     LessThanOrEqual,
+    #[token(">=")]
     GreaterThanOrEqual,
+    #[token("<")]
     LessThan,
+    #[token(">")]
     GreaterThan,
+    #[token("+")]
     Plus,
+    #[token("-")]
     Minus,
+    #[token("*")]
     Multiply,
+    #[token("/")]
     Divide,
+    #[token("%")]
     Modulo,
+    #[token("^")]
     Xor,
+    #[token("#")]
     Length,
+    #[token("(")]
     LeftParen,
+    #[token(")")]
     RightParen,
+    #[token("{")]
     LeftBracket,
+    #[token("}")]
     RightBracket,
+    #[token("[")]
     LeftSquareBracket,
+    #[token("]")]
     RightSquareBracket,
+    #[token(";")]
     Semicolon,
+    #[token(":")]
     Colon,
+    #[token(",")]
     Comma,
+    #[token(".")]
     Period,
+    #[token("..")]
     DoublePeriod,
+    #[token("...")]
     TriplePeriod,
 
-    Number(String),
+    #[regex(r"-?[0-9]+[eE]?[+-]?\.?[0-9]*[eE]?[+-]?[0-9]*", number)]
+    #[regex(r"-?0x[a-fA-F0-9]+", radix_number)]
+    #[regex(r"-?0b[01]+", radix_number)]
+    Number(f64),
+
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", |lex| lex.slice().to_string())]
     Identifier(String),
+
+    #[regex(r#""([^"\\]|\\["\\bnfrt]|u[a-fA-F0-9]{4})*""#, string)]
+    #[regex(r#"'([^'\\]|\\['\\bnfrt]|u[a-fA-F0-9]{4})*'"#, string)]
     String(String),
+
+    #[regex(r#"--.*"#, comment)]
+    Comment(String)
 }
 
 pub struct Lexer {
@@ -73,179 +206,15 @@ impl Lexer {
     }
 
     pub fn tokenize(&self) -> Vec<Token> {
-        let lines = self.code.lines();
-
-        let mut tokens = vec![];
-
-        for (line_number, line) in lines.enumerate() {
-            let mut chars = line.chars().peekable();
-
-            while let Some(char) = chars.next() {
-                if let Some(operator) = self.get_operator(char, &mut chars) {
-                    tokens.push(operator);
-                    continue;
-                }
-
-                if let Some(string) = self.get_string(char, &mut chars) {
-                    tokens.push(string);
-                    continue;
-                }
-
-                if let Some(word) = self.get_word(char, &mut chars) {
-                    let keyword = self.get_keyword(&word);
-
-                    match keyword {
-                        Some(token) => tokens.push(token),
-                        None => tokens.push(Token::Identifier(word)),
-                    };
-
-                    continue;
-                }
-            }
-        }
+        let tokens = Token::lexer(&self.code);
 
         tokens
-    }
-
-    fn is_operator_possibly_long(&self, token: &Token) -> bool {
-        match token {
-            Token::Assignment => true,
-            Token::Tilde => true,
-            Token::LessThan => true,
-            Token::GreaterThan => true,
-            Token::Period => true,
-            _ => false,
-        }
-    }
-
-    fn get_long_operator(&self, op: &Token, chars: &mut Peekable<Chars>) -> Option<Token> {
-        if !self.is_operator_possibly_long(&op) {
-            return None;
-        }
-
-        let next_char = chars.peek();
-
-        let possibly_long_op = match next_char {
-            Some(next_char) => match (op, next_char) {
-                (Token::Assignment, '=') => Some(Token::Equal),
-                (Token::Tilde, '=') => Some(Token::NotEq),
-                (Token::LessThan, '=') => Some(Token::LessThanOrEqual),
-                (Token::GreaterThan, '=') => Some(Token::GreaterThanOrEqual),
-                (Token::Period, '.') => {
-                    chars.next();
-                    let next_char2 = chars.peek();
-
-                    if let Some(ch) = next_char2 {
-                        match ch {
-                            '.' => {
-                                chars.next();
-                                return Some(Token::TriplePeriod);
-                            }
-                            _ => Some(Token::DoublePeriod),
-                        }
-                    } else {
-                        Some(Token::DoublePeriod)
-                    }
+            .map(|token| match token {
+                Ok(v) => v,
+                Err(e) => {
+                    panic!("error lexing {:?}", e);
                 }
-                _ => None,
-            },
-            None => panic!("expected long operator, got nothing"),
-        };
-
-        match possibly_long_op {
-            Some(long_op) => {
-                chars.next();
-                Some(long_op)
-            }
-            None => None,
-        }
-    }
-
-    fn get_operator(&self, ch: char, chars: &mut Peekable<Chars>) -> Option<Token> {
-        let possibly_operator = match ch {
-            '+' => Some(Token::Plus),
-            '-' => Some(Token::Minus),
-            '*' => Some(Token::Multiply),
-            '/' => Some(Token::Divide),
-            '%' => Some(Token::Modulo),
-            '^' => Some(Token::Xor),
-            '#' => Some(Token::Length),
-            '<' => Some(Token::LessThan),
-            '>' => Some(Token::GreaterThan),
-            '=' => Some(Token::Assignment),
-            '(' => Some(Token::LeftParen),
-            ')' => Some(Token::RightParen),
-            '{' => Some(Token::LeftBracket),
-            '}' => Some(Token::RightBracket),
-            '[' => Some(Token::LeftSquareBracket),
-            ']' => Some(Token::RightSquareBracket),
-            ';' => Some(Token::Semicolon),
-            ':' => Some(Token::Colon),
-            ',' => Some(Token::Comma),
-            '.' => Some(Token::Period),
-            '~' => Some(Token::Tilde),
-            _ => None,
-        };
-
-        match possibly_operator {
-            Some(operator) => {
-                let possibly_long_op = self.get_long_operator(&operator, chars);
-
-                match possibly_long_op {
-                    Some(long_op) => Some(long_op),
-                    None => Some(operator),
-                }
-            }
-            None => None,
-        }
-    }
-
-    fn get_string(&self, ch: char, chars: &mut Peekable<Chars>) -> Option<Token> {
-        if ch != '"' && ch != '\'' {
-            return None;
-        }
-
-        let string: String = chars
-            .take_while(|ch| ch.to_string() != "\"".to_string() && ch.to_string() != "\'".to_string())
-            .collect();
-
-        Some(Token::String(string))
-    }
-
-    fn get_word(&self, ch: char, chars: &mut Peekable<Chars>) -> Option<String> {
-        if !ch.is_ascii_alphabetic() {
-            return None;
-        }
-
-        let next_word: String = chars.take_while(|ch| ch.is_ascii_alphanumeric()).collect();
-
-        Some(ch.to_string() + &next_word)
-    }
-
-    fn get_keyword(&self, word: &str) -> Option<Token> {
-        match word {
-            "and" => Some(Token::And),
-            "break" => Some(Token::Break),
-            "do" => Some(Token::Do),
-            "else" => Some(Token::Else),
-            "elseif" => Some(Token::Elseif),
-            "end" => Some(Token::End),
-            "false" => Some(Token::False),
-            "for" => Some(Token::For),
-            "function" => Some(Token::Function),
-            "if" => Some(Token::If),
-            "in" => Some(Token::In),
-            "local" => Some(Token::Local),
-            "nil" => Some(Token::Nil),
-            "not" => Some(Token::Not),
-            "or" => Some(Token::Or),
-            "repeat" => Some(Token::Repeat),
-            "return" => Some(Token::Return),
-            "then" => Some(Token::Then),
-            "true" => Some(Token::True),
-            "until" => Some(Token::Until),
-            "while" => Some(Token::While),
-            _ => None,
-        }
+            })
+            .collect()
     }
 }
