@@ -1,12 +1,10 @@
 use std::fs;
 
-use lexer::lexer::Lexer;
 use parser::parser::parse;
 
 extern crate pretty_env_logger;
 #[macro_use] extern crate log;
 
-mod lexer;
 mod parser;
 
 fn main() {
